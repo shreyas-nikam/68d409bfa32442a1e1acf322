@@ -1,49 +1,50 @@
 import pytest
 import numpy as np
-from definition_42b556685bfd46d49ee71f931910087d import create_synthetic_dataset
+from definition_290f69775e464318869609964e5b43fd import create_synthetic_dataset
 
-@pytest.mark.parametrize("num_samples, sample_length, num_labels, expected_audio_shape, expected_labels_shape", [
-    (10, 100, 5, (10, 100), (10,)),
-    (5, 200, 10, (5, 200), (5,)),
-    (1, 50, 2, (1, 50), (1,)),
-])
-def test_create_synthetic_dataset_shapes(num_samples, sample_length, num_labels, expected_audio_shape, expected_labels_shape):
-    audio_data, text_labels = create_synthetic_dataset(num_samples, sample_length, num_labels)
-    assert audio_data.shape == expected_audio_shape
-    assert text_labels.shape == expected_labels_shape
+@pytest.mark.parametrize(
+    "num_samples, sample_length, num_labels, expected_audio_shape, expected_labels_shape, expected_min_label_val, expected_max_label_val, expected_exception",
+    [
+        # Test Case 1: Standard valid input - multiple samples, length, and labels
+        (100, 1000, 10, (100, 1000), (100,), 0, 10, None),
+        # Test Case 2: Edge case - zero samples
+        (0, 100, 5, (0, 100), (0,), 0, 5, None),
+        # Test Case 3: Edge case - zero sample length
+        (10, 0, 5, (10, 0), (10,), 0, 5, None),
+        # Test Case 4: Error case - negative num_samples (invalid value)
+        (-5, 100, 5, None, None, None, None, ValueError),
+        # Test Case 5: Error case - invalid type for sample_length (TypeError)
+        (10, "invalid", 5, None, None, None, None, TypeError),
+    ]
+)
+def test_create_synthetic_dataset(num_samples, sample_length, num_labels, 
+                                  expected_audio_shape, expected_labels_shape, 
+                                  expected_min_label_val, expected_max_label_val, 
+                                  expected_exception):
+    if expected_exception:
+        # If an exception is expected, assert that the correct exception is raised
+        with pytest.raises(expected_exception):
+            create_synthetic_dataset(num_samples, sample_length, num_labels)
+    else:
+        # If no exception is expected, test the function's output
+        audio_data, text_labels = create_synthetic_dataset(num_samples, sample_length, num_labels)
 
-@pytest.mark.parametrize("num_samples, sample_length, num_labels", [
-    (10, 100, 5),
-    (5, 200, 10),
-    (1, 50, 2),
-])
-def test_create_synthetic_dataset_data_types(num_samples, sample_length, num_labels):
-    audio_data, text_labels = create_synthetic_dataset(num_samples, sample_length, num_labels)
-    assert isinstance(audio_data, np.ndarray)
-    assert isinstance(text_labels, np.ndarray)
-    assert audio_data.dtype == np.float64  # Assuming default numpy float type
-    assert text_labels.dtype == np.int64
+        # Assert output types are numpy arrays
+        assert isinstance(audio_data, np.ndarray)
+        assert isinstance(text_labels, np.ndarray)
 
-def test_create_synthetic_dataset_num_labels_range():
-    num_samples = 10
-    sample_length = 100
-    num_labels = 5
-    audio_data, text_labels = create_synthetic_dataset(num_samples, sample_length, num_labels)
-    assert np.all(text_labels >= 0)
-    assert np.all(text_labels < num_labels)
+        # Assert output shapes
+        assert audio_data.shape == expected_audio_shape
+        assert text_labels.shape == expected_labels_shape
 
-def test_create_synthetic_dataset_audio_data_range():
-    num_samples = 10
-    sample_length = 100
-    num_labels = 5
-    audio_data, text_labels = create_synthetic_dataset(num_samples, sample_length, num_labels)
-    assert np.all(audio_data >= 0)
-    assert np.all(audio_data <= 1)
+        # Only check content if there are samples generated
+        if num_samples > 0:
+            # Assert audio data values are within the expected range [0, 1]
+            assert np.all(audio_data >= 0)
+            assert np.all(audio_data <= 1)
+            assert np.issubdtype(audio_data.dtype, np.floating)
 
-def test_create_synthetic_dataset_zero_samples():
-    num_samples = 0
-    sample_length = 100
-    num_labels = 5
-    audio_data, text_labels = create_synthetic_dataset(num_samples, sample_length, num_labels)
-    assert audio_data.shape == (0, sample_length)
-    assert text_labels.shape == (0,)
+            # Assert text labels are integers and within the expected range [0, num_labels]
+            assert np.issubdtype(text_labels.dtype, np.integer)
+            assert np.all(text_labels >= expected_min_label_val)
+            assert np.all(text_labels <= expected_max_label_val)
