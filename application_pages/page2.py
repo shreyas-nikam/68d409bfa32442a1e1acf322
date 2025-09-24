@@ -18,12 +18,17 @@ def run_page2():
     """)
 
     # Ensure audio_data and text_labels exist in session_state from Page 1
+    # Try to restore from persisted keys if missing
     if 'audio_data' not in st.session_state or 'text_labels' not in st.session_state:
-        st.warning("Please navigate to 'Data Generation & Preprocessing' page first to generate data.")
+        st.warning("Please generate data on the 'Data Generation & Preprocessing' page and click 'Generate Data' before training.")
         return
     if 'mfccs_data' not in st.session_state:
-        st.warning("Please navigate to 'Data Generation & Preprocessing' page first to preprocess audio.")
-        return
+        # Try to restore from persisted key
+        if 'mfccs_data_persisted' in st.session_state:
+            st.session_state['mfccs_data'] = st.session_state['mfccs_data_persisted']
+        else:
+            st.warning("Please preprocess audio on the 'Data Generation & Preprocessing' page before training.")
+            return
 
     # --- Splitting Data ---
     st.header("Data Splitting")
@@ -57,8 +62,16 @@ def run_page2():
     # --- Model Training ---
     st.header("Model Training")
 
-    input_shape = st.session_state['mfccs_data'].shape[1:] + (1,) # Add channel dimension for Conv2D
+
+
+    mfcc_shape = st.session_state['mfccs_data'].shape
+    input_shape = mfcc_shape[1:] + (1,) # Add channel dimension for Conv2D
     num_labels = len(np.unique(st.session_state['text_labels']))
+
+    # Check for zero frame dimension in MFCCs
+    if mfcc_shape[1] == 0 or mfcc_shape[2] == 0:
+        st.error(f"MFCC data has a zero dimension (shape: {mfcc_shape}), likely due to too short audio samples or preprocessing error. Please increase the 'Sample Length' in Data Generation & Preprocessing and click 'Generate Data' again before training.")
+        return
 
     if num_labels == 0:
         st.warning("Cannot create model with zero labels. Please generate data with at least 1 unique label.")

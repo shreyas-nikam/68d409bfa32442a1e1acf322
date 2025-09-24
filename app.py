@@ -1,5 +1,16 @@
-# Starter Python file
+import streamlit as st
+from application_pages.page1 import run_page1
+from application_pages.page2 import run_page2
 
+st.set_page_config(layout="wide")
+
+st.sidebar.title("Navigation")
+selection = st.sidebar.radio("Go to", ["Data Generation & Preprocessing", "Model Training"])
+
+if selection == "Data Generation & Preprocessing":
+    run_page1()
+elif selection == "Model Training":
+    run_page2()
 
 # License
 st.caption('''

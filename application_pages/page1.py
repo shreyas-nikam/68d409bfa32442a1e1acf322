@@ -5,7 +5,7 @@ from application_pages.utils import create_synthetic_dataset, preprocess_audio, 
 def run_page1():
     st.title("Data Generation & Preprocessing")
 
-    st.markdown("""
+    st.markdown(r"""
     Welcome to the first stage of our Text-to-Speech lab: **Data Generation** and **Preprocessing**. Here, we'll create the foundational elements for our TTS system by generating synthetic audio data and transforming it into a format suitable for machine learning models.
 
     ### Synthetic Data Generation
@@ -14,22 +14,27 @@ def run_page1():
     Use the sliders below to control the characteristics of our synthetic dataset:
     """)
 
+
     # --- Data Generation ---
     st.header("Synthetic Data Generation")
     num_samples = st.slider("Number of Samples", min_value=10, max_value=200, value=100, help="The number of synthetic audio samples to generate.", key="num_samples")
     sample_length = st.slider("Sample Length", min_value=100, max_value=2000, value=1000, help="The number of data points for each audio sample.", key="sample_length")
-    num_labels = st.slider("Number of Labels", min_value=2, max_value=20, value=10, help="The number of unique text labels.", key="num_labels_gen") # Renamed key
+    num_labels = st.slider("Number of Labels", min_value=2, max_value=20, value=10, help="The number of unique text labels.", key="num_labels_gen")
 
-    # Using session state to store generated data
-    if 'audio_data' not in st.session_state or \
-       st.session_state.get('num_samples_prev') != num_samples or \
-       st.session_state.get('sample_length_prev') != sample_length or \
-       st.session_state.get('num_labels_gen_prev') != num_labels:
-        
+    generate = st.button("Generate Data", help="Click to generate and persist synthetic data.")
+
+    # Only generate data when button is pressed, or if not present in session state
+    if generate or 'audio_data' not in st.session_state:
         st.session_state['audio_data'], st.session_state['text_labels'] = create_synthetic_dataset(num_samples, sample_length, num_labels)
         st.session_state['num_samples_prev'] = num_samples
         st.session_state['sample_length_prev'] = sample_length
         st.session_state['num_labels_gen_prev'] = num_labels
+        # Remove old MFCCs if present, force regeneration
+        if 'mfccs_data' in st.session_state:
+            del st.session_state['mfccs_data']
+        if generate:
+            st.rerun()
+
 
     st.write(f"Shape of synthetic audio data: `{st.session_state['audio_data'].shape}`")
     st.write(f"Shape of synthetic text labels: `{st.session_state['text_labels'].shape}`")
@@ -62,14 +67,17 @@ def run_page1():
     sample_rate = 22050
     st.write(f"Using a fixed sample rate of `{sample_rate} Hz` for preprocessing.")
 
+
     if 'mfccs_data' not in st.session_state or \
        st.session_state.get('num_samples_prev') != num_samples or \
-       st.session_state.get('sample_length_prev') != sample_length:
-        
+       st.session_state.get('sample_length_prev') != sample_length or \
+       st.session_state.get('num_labels_gen_prev') != num_labels:
         if st.session_state['audio_data'].shape[0] > 0 and st.session_state['audio_data'].shape[1] > 0:
-            st.session_state['mfccs_data'] = preprocess_audio(st.session_state['audio_data'], sample_rate)
+            st.session_state['mfccs_data'] = preprocess_audio(st.session_state['audio_data'], sample_rate, sample_length=sample_length)
         else:
-            st.session_state['mfccs_data'] = np.empty((0, 40, 0), dtype=np.float32) # Default empty MFCCs
+            st.session_state['mfccs_data'] = np.empty((0, 40, 0), dtype=np.float32)
+        # Persist MFCCs for next page
+        st.session_state['mfccs_data_persisted'] = st.session_state['mfccs_data']
 
     st.write(f"Shape of MFCCs data: `{st.session_state['mfccs_data'].shape}`")
 
